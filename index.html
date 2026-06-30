@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiCiclo - Tu Agenda Menstrual</title>
+    <!-- Google Fonts: Outfit (headings) e Inter (body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar / Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-logo">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 21.5C16.5 17.5 20 13.8 20 9.5C20 5.1 16.4 1.5 12 1.5C7.6 1.5 4 5.1 4 9.5C4 13.8 7.5 17.5 12 21.5Z" fill="url(#dropGradient)"/>
+                        <path d="M12 18.5C15 15.2 18 12.2 18 9.5C18 6.2 15.3 3.5 12 3.5C8.7 3.5 6 6.2 6 9.5C6 12.2 9 15.2 12 18.5Z" fill="white" fill-opacity="0.2"/>
+                        <defs>
+                            <linearGradient id="dropGradient" x1="12" y1="1.5" x2="12" y2="21.5" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#FF758F"/>
+                                <stop offset="1" stop-color="#FF385C"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <h1>MiCiclo</h1>
+            </div>
+            
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="hoy-tab">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                    </svg>
+                    <span>Hoy</span>
+                </button>
+                <button class="nav-item" data-tab="registro-tab">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 20h9"></path>
+                        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                    </svg>
+                    <span>Diario y Registro</span>
+                </button>
+                <button class="nav-item" data-tab="calendario-tab">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <span>Calendario</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="user-avatar">🌸</div>
+                    <div class="user-info">
+                        <span class="user-name">Mi Espacio</span>
+                        <span class="user-status">Cuidado Diario</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top bar -->
+            <header class="top-bar">
+                <div class="mobile-brand">
+                    <div class="brand-logo">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 21.5C16.5 17.5 20 13.8 20 9.5C20 5.1 16.4 1.5 12 1.5C7.6 1.5 4 5.1 4 9.5C4 13.8 7.5 17.5 12 21.5Z" fill="url(#dropGradientMobile)"/>
+                            <path d="M12 18.5C15 15.2 18 12.2 18 9.5C18 6.2 15.3 3.5 12 3.5C8.7 3.5 6 6.2 6 9.5C6 12.2 9 15.2 12 18.5Z" fill="white" fill-opacity="0.2"/>
+                            <defs>
+                                <linearGradient id="dropGradientMobile" x1="12" y1="1.5" x2="12" y2="21.5" gradientUnits="userSpaceOnUse">
+                                    <stop stop-color="#FF758F"/>
+                                    <stop offset="1" stop-color="#FF385C"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    <h1>MiCiclo</h1>
+                </div>
+                <div class="quick-status-badge" id="quick-status-card">
+                    <span class="pulse-dot"></span>
+                    <span id="quick-status-text">Calculando ciclo...</span>
+                </div>
+            </header>
+
+            <!-- Screen 0: Hoy (Inicio) -->
+            <section id="hoy-tab" class="tab-content active">
+                <div class="hoy-layout">
+                    <!-- Left: Current Phase and advice card -->
+                    <div class="card card-phase-main">
+                        <div class="phase-header">
+                            <span class="phase-badge" id="hoy-phase-badge">Fase del ciclo</span>
+                            <h2 id="hoy-phase-title">Cargando fase...</h2>
+                            <p id="hoy-cycle-day">Día -- del ciclo</p>
+                        </div>
+                        
+                        <div class="phase-progress-container">
+                            <svg class="phase-progress-svg" viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="42" class="circle-bg"></circle>
+                                <circle cx="50" cy="50" r="42" class="circle-progress" id="hoy-progress-bar"></circle>
+                            </svg>
+                            <div class="circle-text">
+                                <span class="circle-number" id="hoy-days-rem">--</span>
+                                <span class="circle-label" id="hoy-days-label">días restantes</span>
+                            </div>
+                        </div>
+
+                        <div class="phase-advice-box">
+                            <h4>🩺 ¿Cómo te puedes sentir?</h4>
+                            <p id="hoy-phase-advice">Cargando consejos fisiológicos y de bienestar para esta fase...</p>
+                        </div>
+                    </div>
+
+                    <!-- Right: Info cards -->
+                    <div class="hoy-sidebar-info">
+                        <!-- Next Phase prediction card -->
+                        <div class="card card-next-phase">
+                            <div class="card-header">
+                                <div class="card-icon">🔮</div>
+                                <h3>Siguiente fase</h3>
+                            </div>
+                            <div class="next-phase-content">
+                                <span class="phase-badge-next" id="next-phase-badge">Próxima fase</span>
+                                <h4 id="next-phase-name">Calculando...</h4>
+                                <p id="next-phase-eta">En aproximadamente -- días</p>
+                            </div>
+                        </div>
+
+                        <!-- Today's Log Summary card -->
+                        <div class="card card-today-summary">
+                            <div class="card-header">
+                                <div class="card-icon">🌸</div>
+                                <h3>Tu diario de hoy</h3>
+                            </div>
+                            <div id="today-log-status" class="today-log-status">
+                                <!-- Dynamic today log summary -->
+                                <p>Cargando diario de hoy...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Screen 1: Registro y Diario -->
+            <section id="registro-tab" class="tab-content">
+                <div class="grid-layout">
+                    <!-- Left: Form Card -->
+                    <div class="card card-form">
+                        <div class="card-header">
+                            <div class="card-icon">✍️</div>
+                            <h3>¿Cómo te sientes hoy?</h3>
+                        </div>
+                        <form id="period-form" class="period-form">
+                            <!-- Date Selector -->
+                            <div class="form-group">
+                                <label for="record-date">Fecha de registro</label>
+                                <div class="input-wrapper">
+                                    <input type="date" id="record-date" required>
+                                </div>
+                            </div>
+
+                            <!-- Period Active Toggle -->
+                            <div class="form-group toggle-group">
+                                <div class="toggle-label-desc">
+                                    <span class="label-title">¿Menstruación activa?</span>
+                                    <span class="label-subtitle">Indica si hoy estás con la regla</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="period-active">
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+
+                            <!-- Menstrual Pain Level -->
+                            <div class="form-group">
+                                <label>Dolor menstrual</label>
+                                <div class="pain-selector">
+                                    <label class="pain-option pain-none">
+                                        <input type="radio" name="pain-level" value="0" checked>
+                                        <span class="pain-box">
+                                            <span class="pain-emoji">😊</span>
+                                            <span class="pain-text">Sin dolor</span>
+                                        </span>
+                                    </label>
+                                    <label class="pain-option pain-mild">
+                                        <input type="radio" name="pain-level" value="1">
+                                        <span class="pain-box">
+                                            <span class="pain-emoji">🙂</span>
+                                            <span class="pain-text">Leve</span>
+                                        </span>
+                                    </label>
+                                    <label class="pain-option pain-medium">
+                                        <input type="radio" name="pain-level" value="2">
+                                        <span class="pain-box">
+                                            <span class="pain-emoji">😔</span>
+                                            <span class="pain-text">Moderado</span>
+                                        </span>
+                                    </label>
+                                    <label class="pain-option pain-severe">
+                                        <input type="radio" name="pain-level" value="3">
+                                        <span class="pain-box">
+                                            <span class="pain-emoji">😫</span>
+                                            <span class="pain-text">Fuerte</span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Additional Symptoms (Chips) -->
+                            <div class="form-group">
+                                <label>Otros síntomas</label>
+                                <div class="symptoms-grid">
+                                    <label class="symptom-chip">
+                                        <input type="checkbox" name="symptoms" value="headache">
+                                        <span>🤕 Cansancio/Cabeza</span>
+                                    </label>
+                                    <label class="symptom-chip">
+                                        <input type="checkbox" name="symptoms" value="bloating">
+                                        <span>🎈 Hinchazón</span>
+                                    </label>
+                                    <label class="symptom-chip">
+                                        <input type="checkbox" name="symptoms" value="mood">
+                                        <span>🎭 Humor sensible</span>
+                                    </label>
+                                    <label class="symptom-chip">
+                                        <input type="checkbox" name="symptoms" value="cramps">
+                                        <span>⚡ Pinchazos</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Notes -->
+                            <div class="form-group">
+                                <label for="record-notes">Notas personales</label>
+                                <textarea id="record-notes" placeholder="Escribe cómo te sientes, medicamentos tomados, etc..." rows="3"></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                    <polyline points="7 3 7 8 15 8"></polyline>
+                                </svg>
+                                Guardar Registro
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Right: History List -->
+                    <div class="card card-history">
+                        <div class="card-header">
+                            <div class="card-icon">📋</div>
+                            <h3>Historial Reciente</h3>
+                        </div>
+                        <div class="history-list-container">
+                            <div id="history-empty" class="empty-state hidden">
+                                <div class="empty-icon">🌸</div>
+                                <p>Aún no hay registros de tu ciclo.</p>
+                                <p class="empty-sub">¡Comienza registrando tu estado hoy!</p>
+                            </div>
+                            <div id="history-items" class="history-items">
+                                <!-- Dynamic history items will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Screen 2: Calendario -->
+            <section id="calendario-tab" class="tab-content">
+                <div class="calendar-container">
+                    <div class="calendar-sidebar">
+                        <!-- Cycle Summary Box -->
+                        <div class="card card-summary">
+                            <h3>Resumen del Ciclo</h3>
+                            <div class="summary-stat">
+                                <span class="stat-number" id="avg-cycle-length">--</span>
+                                <span class="stat-label">Días promedio de ciclo</span>
+                            </div>
+                            <div class="summary-stat">
+                                <span class="stat-number" id="avg-period-length">--</span>
+                                <span class="stat-label">Días promedio de regla</span>
+                            </div>
+                            <div class="next-period-box">
+                                <span class="next-period-title">Próximo período estimado</span>
+                                <span class="next-period-date" id="next-period-est">Calculando...</span>
+                            </div>
+                            <div class="next-fertility-box">
+                                <span class="next-fertility-title">Día más fértil estimado</span>
+                                <span class="next-fertility-date" id="next-ovulation-est">Calculando...</span>
+                            </div>
+                        </div>
+
+                        <!-- Calendar Legend -->
+                        <div class="card card-legend">
+                            <h3>Leyenda</h3>
+                            <ul class="legend-list">
+                                <li>
+                                    <span class="legend-color period-day"></span>
+                                    <span>Menstruación activa</span>
+                                </li>
+                                <li>
+                                    <span class="legend-color prediction-day"></span>
+                                    <span>Predicción de regla</span>
+                                </li>
+                                <li>
+                                    <span class="legend-color fertile-day"></span>
+                                    <span>Ventana de fertilidad</span>
+                                </li>
+                                <li>
+                                    <span class="legend-color ovulation-day-icon">✨</span>
+                                    <span>Día más fértil (Ovulación)</span>
+                                </li>
+                                <li>
+                                    <span class="legend-indicator pain-1"></span>
+                                    <span>Dolor Leve</span>
+                                </li>
+                                <li>
+                                    <span class="legend-indicator pain-2"></span>
+                                    <span>Dolor Moderado</span>
+                                </li>
+                                <li>
+                                    <span class="legend-indicator pain-3"></span>
+                                    <span>Dolor Fuerte</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Main Calendar Area -->
+                    <div class="card card-calendar-main">
+                        <div class="calendar-header-nav">
+                            <div class="calendar-nav-left">
+                                <button id="prev-month" class="btn-nav" title="Mes anterior">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="15 18 9 12 15 6"></polyline>
+                                    </svg>
+                                </button>
+                                <button id="next-month" class="btn-nav" title="Mes siguiente">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="9 18 15 12 9 6"></polyline>
+                                    </svg>
+                                </button>
+                            </div>
+                            <h2 id="calendar-month-year">Junio 2026</h2>
+                            <button id="go-to-today" class="btn btn-secondary btn-today" title="Ir al día de hoy">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                </svg>
+                                Hoy
+                            </button>
+                        </div>
+
+                        <div class="calendar-weekdays">
+                            <div>lun</div>
+                            <div>mar</div>
+                            <div>mié</div>
+                            <div>jue</div>
+                            <div>vie</div>
+                            <div>sáb</div>
+                            <div>dom</div>
+                        </div>
+
+                        <div id="calendar-grid" class="calendar-grid">
+                            <!-- Dynamic days will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Day Details Modal (UX improvement) -->
+    <div id="day-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button class="modal-close" id="close-modal">&times;</button>
+            <h3 id="modal-date-title">Detalles del día</h3>
+            <div id="modal-details-body">
+                <!-- Dynamic details go here -->
+            </div>
+            <div class="modal-actions">
+                <button id="modal-edit-btn" class="btn btn-secondary">Editar Registro</button>
+                <button id="modal-delete-btn" class="btn btn-danger">Borrar Registro</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification for feedback -->
+    <div id="toast" class="toast hidden">Registro guardado con éxito</div>
+
+    <script src="app.js"></script>
+</body>
+</html>
