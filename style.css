@@ -1546,6 +1546,263 @@ textarea:focus {
     width: 100%;
 }
 
+/* Columns layout for Hoy/Ciclo screen */
+.hoy-main-column {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+}
+
+/* Cycle Wheel Card Styling */
+.card-cycle-wheel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.cycle-wheel-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.wheel-svg-wrapper {
+    position: relative;
+    width: 260px;
+    height: 260px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 1rem 0;
+}
+
+.cycle-wheel-svg {
+    width: 100%;
+    height: 100%;
+}
+
+.wheel-segment {
+    transition: stroke-width 0.3s ease, filter 0.3s ease;
+    cursor: pointer;
+}
+
+.wheel-segment:hover {
+    stroke-width: 14px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+.wheel-center-text {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    pointer-events: none;
+}
+
+.wheel-day-num {
+    font-family: var(--font-title);
+    font-size: 2.2rem;
+    font-weight: 800;
+    line-height: 1.1;
+    transition: color 0.3s ease;
+}
+
+.wheel-day-total {
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    font-weight: 700;
+    line-height: 1.4;
+    max-width: 175px;
+    text-align: center;
+}
+
+.wheel-legend {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.8rem;
+    border-top: 1px solid var(--border-color);
+    padding-top: 1.5rem;
+    margin-top: 0.5rem;
+}
+
+.legend-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    border: 1px solid transparent;
+    transition: var(--transition);
+}
+
+/* Specific background and border for active phase if it matches color */
+.legend-item.active-phase-menstrual {
+    background: #FFE3E7;
+    border-color: rgba(255, 94, 126, 0.15);
+    box-shadow: var(--shadow-sm);
+}
+.legend-item.active-phase-fertile {
+    background: rgba(177, 133, 219, 0.12);
+    border-color: rgba(177, 133, 219, 0.3);
+    box-shadow: var(--shadow-sm);
+}
+.legend-item.active-phase-ovulation {
+    background: #F3E8FF;
+    border-color: rgba(142, 68, 173, 0.25);
+    box-shadow: var(--shadow-sm);
+}
+.legend-item.active-phase-neutral {
+    background: rgba(176, 190, 197, 0.1);
+    border-color: rgba(176, 190, 197, 0.2);
+    box-shadow: var(--shadow-sm);
+}
+
+.legend-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.legend-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.legend-days {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.legend-item[class*="active-phase-"] .legend-name {
+    color: var(--text-main);
+    font-weight: 700;
+}
+
+.legend-item[class*="active-phase-"] .legend-days {
+    color: var(--text-main);
+}
+
+.wheel-marker {
+    transition: transform 0.3s ease;
+}
+
+@keyframes pulseOpacity {
+    0% { opacity: 0.15; }
+    50% { opacity: 0.35; }
+    100% { opacity: 0.15; }
+}
+
+.wheel-marker-pulse {
+    animation: pulseOpacity 2s infinite ease-in-out;
+}
+
+@keyframes glowOpacity {
+    0% { opacity: 0.15; }
+    50% { opacity: 0.5; }
+    100% { opacity: 0.15; }
+}
+
+.ovulation-glow {
+    animation: glowOpacity 2.5s infinite ease-in-out;
+}
+
+/* Predictions Box Styling */
+.phase-predictions-box {
+    width: 100%;
+    background: rgba(177, 133, 219, 0.06);
+    border-left: 4px solid #B185DB;
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    text-align: left;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+}
+
+.phase-predictions-box h4 {
+    font-family: var(--font-title);
+    font-size: 1rem;
+    font-weight: 700;
+    color: #6F4E8C;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.predictions-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.prediction-item {
+    font-size: 0.88rem;
+    color: var(--text-main);
+    line-height: 1.4;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.prediction-emoji {
+    font-size: 1.1rem;
+    line-height: 1.2;
+}
+
+.prediction-text {
+    flex: 1;
+}
+
+.prediction-text p {
+    font-size: 0.88rem;
+    color: var(--text-main);
+    margin-bottom: 2px;
+}
+
+.prediction-desc-highlight {
+    font-weight: 700;
+    color: #4B0082;
+}
+
+.prediction-item-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #8A7A7D;
+    background: rgba(111, 78, 140, 0.08);
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-top: 4px;
+    display: inline-block;
+}
+
+.phase-predictions-box.hidden {
+    display: none !important;
+}
+
+@media (max-width: 480px) {
+    .wheel-legend {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+}
+
 /* Mobile Brand (Desktop hidden) */
 .mobile-brand {
     display: none;

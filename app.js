@@ -9,27 +9,38 @@ const symptomEmojis = {
     headache: "🤕 Cansancio/Cabeza",
     bloating: "🎈 Hinchazón",
     mood: "🎭 Humor sensible",
-    cramps: "⚡ Pinchazos"
+    cramps: "⚡ Pinchazos",
+    nipples: "🍒 Pezones sensibles"
 };
 
 // --- Mock Data Generator ---
 function getMockData() {
     return {
-        // Cycle 1: April 25 to April 29, 2026
+        // Cycle 1: April 25 to May 23, 2026
         "2026-04-25": { periodActive: true, painLevel: 2, symptoms: ["cramps", "bloating"], notes: "Inicio del ciclo, bastante cansancio." },
         "2026-04-26": { periodActive: true, painLevel: 3, symptoms: ["cramps", "headache"], notes: "Flujo abundante, dolor fuerte por la mañana." },
         "2026-04-27": { periodActive: true, painLevel: 1, symptoms: ["bloating"], notes: "Dolor mucho más leve. Tomé un té caliente." },
         "2026-04-28": { periodActive: true, painLevel: 0, symptoms: [], notes: "Poco flujo. Vuelta a la normalidad." },
         "2026-04-29": { periodActive: true, painLevel: 0, symptoms: [], notes: "Fin del período." },
+        // Cycle 1 Day 9: May 3 (to trigger headache prediction on Day 9)
+        "2026-05-03": { periodActive: false, painLevel: 0, symptoms: ["headache"], notes: "Dolor de cabeza ligero por la tarde." },
+        // Cycle 1 Premenstrual days: 3 and 2 days before next start (May 24)
+        "2026-05-21": { periodActive: false, painLevel: 1, symptoms: ["headache", "bloating"], notes: "Hinchazón de vientre y dolor de cabeza." },
+        "2026-05-22": { periodActive: false, painLevel: 2, symptoms: ["headache", "mood"], notes: "Bastante dolor de cabeza e irritabilidad." },
         
-        // Cycle 2: May 24 to May 28, 2026 (29 days after April 25)
+        // Cycle 2: May 24 to June 21, 2026
         "2026-05-24": { periodActive: true, painLevel: 1, symptoms: ["cramps"], notes: "Manchado inicial suave." },
         "2026-05-25": { periodActive: true, painLevel: 2, symptoms: ["cramps", "mood"], notes: "Dolor medio, humor muy sensible y antojos." },
         "2026-05-26": { periodActive: true, painLevel: 2, symptoms: ["bloating", "headache"], notes: "Hinchada y con sueño." },
         "2026-05-27": { periodActive: true, painLevel: 1, symptoms: ["cramps"], notes: "Casi terminado." },
         "2026-05-28": { periodActive: true, painLevel: 0, symptoms: [], notes: "Último día de regla." },
+        // Cycle 2 Day 9: June 1 (to trigger headache and nipples predictions on Day 9)
+        "2026-06-01": { periodActive: false, painLevel: 0, symptoms: ["headache", "nipples"], notes: "Pezones algo sensibles y molestia de cabeza." },
+        // Cycle 2 Premenstrual days: 3 and 2 days before next start (June 22)
+        "2026-06-19": { periodActive: false, painLevel: 1, symptoms: ["headache", "bloating"], notes: "Hinchazón y cansancio." },
+        "2026-06-20": { periodActive: false, painLevel: 2, symptoms: ["headache", "mood"], notes: "Pinchazos y dolor de cabeza fuerte." },
         
-        // Cycle 3: June 22 to June 26, 2026 (29 days after May 24)
+        // Cycle 3: June 22 to June 26, 2026 (current cycle in progress)
         "2026-06-22": { periodActive: true, painLevel: 2, symptoms: ["cramps"], notes: "Comenzó por la tarde. Molestias en la zona lumbar." },
         "2026-06-23": { periodActive: true, painLevel: 3, symptoms: ["cramps", "headache", "bloating"], notes: "Día difícil. Dolor de cabeza fuerte e hinchazón." },
         "2026-06-24": { periodActive: true, painLevel: 2, symptoms: ["cramps", "mood"], notes: "Dolor de ovarios intermitente." },
@@ -44,6 +55,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const saved = localStorage.getItem("miciclo_records");
     if (saved) {
         records = JSON.parse(saved);
+        // Refresh mock data if it's the old version without May 21 symptoms to demonstrate predictions immediately
+        if (!records["2026-05-21"] && records["2026-04-25"]) {
+            records = getMockData();
+            saveRecords();
+        }
     } else {
         records = getMockData();
         saveRecords();
@@ -208,6 +224,12 @@ function updateUI() {
 
     // 4. Update Hoy Screen
     updateTodayTab(stats);
+
+    // 5. Update Cycle Wheel Card
+    updateCycleWheel(stats);
+
+    // 6. Update Symptom Predictions
+    updateSymptomPredictions(stats);
 }
 
 function calculateCycleStats() {
@@ -879,9 +901,6 @@ function updateTodayTab(stats) {
     const phaseBadge = document.getElementById("hoy-phase-badge");
     const phaseTitle = document.getElementById("hoy-phase-title");
     const cycleDayText = document.getElementById("hoy-cycle-day");
-    const daysRemNumber = document.getElementById("hoy-days-rem");
-    const daysRemLabel = document.getElementById("hoy-days-label");
-    const progressBar = document.getElementById("hoy-progress-bar");
     const phaseAdvice = document.getElementById("hoy-phase-advice");
     
     const nextPhaseBadge = document.getElementById("next-phase-badge");
@@ -916,9 +935,6 @@ function updateTodayTab(stats) {
         phaseBadge.textContent = "Sin datos";
         phaseTitle.textContent = "Introduce tu registro";
         cycleDayText.textContent = "Comienza registrando tu ciclo";
-        daysRemNumber.textContent = "--";
-        daysRemLabel.textContent = "Días restantes";
-        progressBar.style.strokeDashoffset = "264";
         phaseAdvice.textContent = "Registra cuándo comenzó tu última regla en la pestaña 'Diario y Registro' para que podamos calcular las fases de tu ciclo menstrual y ofrecerte consejos personalizados.";
         
         nextPhaseBadge.style.display = "none";
@@ -980,22 +996,11 @@ function updateTodayTab(stats) {
         ovulacion: "Fase de Ovulación ✨",
         lutea: "Fase Lútea 🌾"
     };
-    phaseTitle.textContent = phaseNiceNames[currentPhase];
-    cycleDayText.textContent = `Día ${cycleDay} del ciclo (Duración promedio: ${L_cycle} días)`;
+    if (phaseTitle) phaseTitle.textContent = phaseNiceNames[currentPhase];
+    if (cycleDayText) cycleDayText.textContent = `Día ${cycleDay} del ciclo (Duración promedio: ${L_cycle} días)`;
 
-    // 2. Update Progress Circular Bar
-    daysRemNumber.textContent = daysRemaining;
-    daysRemLabel.textContent = daysRemaining === 1 ? "día restante" : "días restantes";
-    
-    // Circular offset: PI * d (d=84) -> ~264 circumference.
-    // Offset ranges from 264 (0% progress) to 0 (100% progress)
-    const progressPercent = Math.min(1, dayOfPhase / phaseDuration);
-    const dashoffset = Math.max(0, Math.min(264, 264 * (1 - progressPercent)));
-    progressBar.style.strokeDashoffset = dashoffset;
-    progressBar.className = `circle-progress progress-${currentPhase}`;
-
-    // 3. Update advice text
-    phaseAdvice.textContent = advices[currentPhase];
+    // 2. Update advice text
+    if (phaseAdvice) phaseAdvice.textContent = advices[currentPhase];
 
     // 4. Update Next Phase prediction
     let nextPhaseCode = "folicular";
@@ -1120,4 +1125,445 @@ function renderTodayEmptySummary() {
     });
 
     todayLogStatus.appendChild(emptyBox);
+}
+
+// --- Rueda del Ciclo Completo ---
+function updateCycleWheel(stats) {
+    const todayStr = "2026-06-30"; // App context today
+    const svg = document.getElementById("cycle-wheel-svg");
+    const dayTotalText = document.getElementById("wheel-day-total");
+    const legendContainer = document.getElementById("wheel-legend");
+    
+    if (!svg) return;
+
+    // Clear previous segments and marker, but keep filters
+    const defs = svg.querySelector("defs");
+    svg.innerHTML = "";
+    if (defs) {
+        svg.appendChild(defs);
+    } else {
+        svg.innerHTML = `
+            <defs>
+                <filter id="marker-shadow" x="-30%" y="-30%" width="160%" height="160%">
+                    <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.15"/>
+                </filter>
+            </defs>
+        `;
+    }
+
+    // Faint background circle track (Low Fertility / Base Track)
+    const bgCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    bgCircle.setAttribute("cx", "100");
+    bgCircle.setAttribute("cy", "100");
+    bgCircle.setAttribute("r", "85");
+    bgCircle.setAttribute("fill", "none");
+    bgCircle.setAttribute("stroke", "var(--secondary-light)");
+    bgCircle.setAttribute("stroke-width", "10");
+    bgCircle.setAttribute("opacity", "0.5");
+    bgCircle.setAttribute("class", "wheel-base-track");
+    svg.appendChild(bgCircle);
+
+    // Get stats values or fallbacks
+    const L_cycle = stats.avgCycleLength || 29;
+    const L_period = stats.avgPeriodLength || 5;
+    const ovulationDay = L_cycle - 14; // Day 15 for 29-day cycle
+
+    // Fertile Window: Days (ovulationDay - 5) to ovulationDay.
+    const fertileStart = ovulationDay - 5;
+    const fertileEnd = ovulationDay;
+
+    // Find if user has logged data
+    let lastStartStr = null;
+    if (stats.startDates.length > 0) {
+        for (let i = stats.startDates.length - 1; i >= 0; i--) {
+            const startDateStr = stats.startDates[i];
+            if (startDateStr <= todayStr) {
+                lastStartStr = startDateStr;
+                break;
+            }
+        }
+    }
+
+    let cycleDay = null;
+    let currentStatus = "neutral"; // "menstrual", "fertile", "ovulation", "neutral"
+    if (lastStartStr) {
+        const diffDays = getDaysDifference(lastStartStr, todayStr);
+        cycleDay = diffDays + 1;
+
+        if (cycleDay <= L_period) {
+            currentStatus = "menstrual";
+        } else if (cycleDay === ovulationDay) {
+            currentStatus = "ovulation";
+        } else if (cycleDay >= fertileStart && cycleDay <= fertileEnd) {
+            currentStatus = "fertile";
+        } else {
+            currentStatus = "neutral";
+        }
+    }
+
+    // Helper for polar to cartesian arc path
+    function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
+        const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+        return {
+            x: centerX + (radius * Math.cos(angleInRadians)),
+            y: centerY + (radius * Math.sin(angleInRadians))
+        };
+    }
+
+    function describeArc(x, y, radius, startAngle, endAngle) {
+        const start = polarToCartesian(x, y, radius, endAngle);
+        const end = polarToCartesian(x, y, radius, startAngle);
+        const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+        return [
+            "M", start.x, start.y, 
+            "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y
+        ].join(" ");       
+    }
+
+    // Draw Menstruación segment
+    const mStartAngle = 0;
+    const mEndAngle = L_period * (360 / L_cycle);
+    const mDurationDeg = mEndAngle - mStartAngle;
+    const mCap = Math.min(4, mDurationDeg / 2.5);
+    
+    if (mEndAngle - mCap > mStartAngle + mCap) {
+        const pathD = describeArc(100, 100, 85, mStartAngle + mCap, mEndAngle - mCap);
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", pathD);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", "var(--primary)");
+        path.setAttribute("stroke-width", "10");
+        path.setAttribute("stroke-linecap", "round");
+        path.setAttribute("class", "wheel-segment segment-menstrual");
+        svg.appendChild(path);
+    }
+
+    // Draw Ventana Fértil segment (Days: fertileStart to fertileEnd)
+    const fStartAngle = (fertileStart - 1) * (360 / L_cycle);
+    const fEndAngle = fertileEnd * (360 / L_cycle);
+    const fDurationDeg = fEndAngle - fStartAngle;
+    const fCap = Math.min(4, fDurationDeg / 2.5);
+
+    if (fEndAngle - fCap > fStartAngle + fCap) {
+        const pathD = describeArc(100, 100, 85, fStartAngle + fCap, fEndAngle - fCap);
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", pathD);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", "#B185DB");
+        path.setAttribute("stroke-width", "10");
+        path.setAttribute("stroke-linecap", "round");
+        path.setAttribute("class", "wheel-segment segment-fertile");
+        svg.appendChild(path);
+    }
+
+    // Draw Ovulation Day marker (Día más fértil)
+    const ovAngle = (ovulationDay - 0.5) * (360 / L_cycle);
+    const ovAngleRad = (ovAngle - 90) * Math.PI / 180;
+    const ovX = 100 + 85 * Math.cos(ovAngleRad);
+    const ovY = 100 + 85 * Math.sin(ovAngleRad);
+
+    const ovStar = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    ovStar.setAttribute("class", "wheel-ovulation-marker");
+    ovStar.innerHTML = `
+        <circle cx="${ovX}" cy="${ovY}" r="9" fill="#8E44AD" opacity="0.25" class="ovulation-glow"></circle>
+        <path d="M ${ovX} ${ovY-7} L ${ovX+2} ${ovY-2} L ${ovX+7} ${ovY} L ${ovX+2} ${ovY+2} L ${ovX} ${ovY+7} L ${ovX-2} ${ovY+2} L ${ovX-7} ${ovY} L ${ovX-2} ${ovY-2} Z" fill="#8E44AD" stroke="white" stroke-width="1.2"></path>
+    `;
+    svg.appendChild(ovStar);
+
+    // Draw marker if cycleDay is active
+    if (cycleDay !== null) {
+        const displayDay = cycleDay;
+        const cappedDay = Math.min(cycleDay, L_cycle);
+        
+        // Calculate marker angle (middle of the day block)
+        const markerAngle = (cappedDay - 0.5) * (360 / L_cycle);
+        const markerAngleRad = (markerAngle - 90) * Math.PI / 180;
+        const markerX = 100 + 85 * Math.cos(markerAngleRad);
+        const markerY = 100 + 85 * Math.sin(markerAngleRad);
+
+        // Marker color based on currentStatus
+        let markerColor = "var(--secondary)";
+        if (currentStatus === "menstrual") {
+            markerColor = "var(--primary)";
+        } else if (currentStatus === "ovulation") {
+            markerColor = "#8E44AD";
+        } else if (currentStatus === "fertile") {
+            markerColor = "#B185DB";
+        }
+
+        // Draw glowing aura / pulse circle first
+        const markerPulse = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        markerPulse.setAttribute("cx", markerX.toString());
+        markerPulse.setAttribute("cy", markerY.toString());
+        markerPulse.setAttribute("r", "13");
+        markerPulse.setAttribute("fill", markerColor);
+        markerPulse.setAttribute("opacity", "0.25");
+        markerPulse.setAttribute("class", "wheel-marker-pulse");
+        svg.appendChild(markerPulse);
+
+        // Draw marker circle
+        const marker = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        marker.setAttribute("cx", markerX.toString());
+        marker.setAttribute("cy", markerY.toString());
+        marker.setAttribute("r", "7");
+        marker.setAttribute("fill", "white");
+        marker.setAttribute("stroke", markerColor);
+        marker.setAttribute("stroke-width", "3");
+        marker.setAttribute("filter", "url(#marker-shadow)");
+        marker.setAttribute("class", "wheel-marker");
+        svg.appendChild(marker);
+
+        // Center text update
+        dayTotalText.style.color = markerColor;
+
+        // Calculate dynamic subtext based on status
+        let subtext = "";
+        if (currentStatus === "menstrual") {
+            const daysLeft = L_period - displayDay + 1;
+            const verb = daysLeft === 1 ? "Queda" : "Quedan";
+            subtext = daysLeft > 0 
+                ? `${verb} ${daysLeft} día${daysLeft === 1 ? '' : 's'} de regla`
+                : "Último día de regla";
+        } else if (displayDay <= ovulationDay) {
+            const daysLeft = ovulationDay - displayDay;
+            if (daysLeft === 0) {
+                subtext = "¡Hoy es tu día más fértil! ✨";
+            } else {
+                const verb = daysLeft === 1 ? "Queda" : "Quedan";
+                subtext = `${verb} ${daysLeft} día${daysLeft === 1 ? '' : 's'} para tu día más fértil`;
+            }
+        } else {
+            // Ovulation day has passed
+            const daysLeft = L_cycle - displayDay + 1;
+            if (daysLeft <= 0) {
+                subtext = "Regla inminente / retrasada";
+            } else {
+                const verb = daysLeft === 1 ? "Queda" : "Quedan";
+                subtext = `${verb} ${daysLeft} día${daysLeft === 1 ? '' : 's'} para la siguiente regla`;
+            }
+        }
+        dayTotalText.textContent = subtext;
+    } else {
+        // Fallback text if no data logged
+        dayTotalText.textContent = "Sin datos";
+        dayTotalText.style.color = "var(--text-muted)";
+    }
+
+    // Build Legend for Fertilidad
+    legendContainer.innerHTML = "";
+    
+    const legendItems = [
+        { key: 'menstrual', name: 'Menstruación', emoji: '🩸', desc: `${L_period} días (Días 1-${L_period})`, color: 'var(--primary)' },
+        { key: 'fertile', name: 'Ventana Fértil', emoji: '💜', desc: `6 días (Días ${fertileStart}-${fertileEnd})`, color: '#B185DB' },
+        { key: 'ovulation', name: 'Día Más Fértil', emoji: '✨', desc: `Día ${ovulationDay} (Ovulación)`, color: '#8E44AD' },
+        { key: 'neutral', name: 'Baja Fertilidad', emoji: '⚪', desc: 'Resto del ciclo', color: '#B0BEC5' }
+    ];
+
+    legendItems.forEach(item => {
+        const isCurrent = currentStatus === item.key;
+        const legendItem = document.createElement("div");
+        legendItem.className = `legend-item ${isCurrent ? 'active-phase-' + item.key : ''}`;
+        
+        legendItem.innerHTML = `
+            <div class="legend-info">
+                <span class="legend-dot" style="background-color: ${item.color};"></span>
+                <span class="legend-name">${item.emoji} ${item.name}</span>
+            </div>
+            <span class="legend-days">${item.desc}</span>
+        `;
+        legendContainer.appendChild(legendItem);
+    });
+}
+
+// --- Predicciones de Bienestar ---
+function getSymptomPredictions(stats) {
+    const todayStr = "2026-06-30"; // App context today
+    const L_cycle = stats.avgCycleLength || 29;
+    const L_period = stats.avgPeriodLength || 5;
+    const ovulationDay = L_cycle - 14;
+
+    // Find last start date
+    let lastStartStr = null;
+    if (stats.startDates.length > 0) {
+        for (let i = stats.startDates.length - 1; i >= 0; i--) {
+            const startDateStr = stats.startDates[i];
+            if (startDateStr <= todayStr) {
+                lastStartStr = startDateStr;
+                break;
+            }
+        }
+    }
+
+    if (!lastStartStr) return [];
+
+    const diffDays = getDaysDifference(lastStartStr, todayStr);
+    const cycleDay = diffDays + 1; // Today's cycle day
+    const daysBeforePeriod = L_cycle - cycleDay + 1; // Days remaining in cycle
+
+    // Gather all historical cycles
+    const historicalCycles = [];
+    for (let i = 0; i < stats.startDates.length; i++) {
+        const start = stats.startDates[i];
+        let nextStart = null;
+        if (i < stats.startDates.length - 1) {
+            nextStart = stats.startDates[i + 1];
+        } else if (stats.nextPeriodEstDate) {
+            nextStart = formatDateKey(stats.nextPeriodEstDate);
+        }
+        
+        if (nextStart) {
+            historicalCycles.push({
+                start: start,
+                nextStart: nextStart,
+                length: getDaysDifference(start, nextStart)
+            });
+        }
+    }
+
+    // Check up to the last 6 historical cycles
+    const recentCycles = historicalCycles.slice(-6);
+    if (recentCycles.length === 0) return [];
+
+    // Analyze symptoms
+    const symptomsToAnalyze = ['headache', 'bloating', 'mood', 'cramps', 'nipples'];
+    const predictions = [];
+
+    symptomsToAnalyze.forEach(symptomKey => {
+        let matchCount = 0;
+        
+        recentCycles.forEach(cycle => {
+            const targetDateForward = getAdjacentDateStr(cycle.start, cycleDay - 1);
+            const targetDateBackward = getAdjacentDateStr(cycle.nextStart, -daysBeforePeriod);
+
+            // We check matching day and its adjacent days (±1 day) for robustness
+            const datesToCheck = new Set([
+                targetDateForward,
+                getAdjacentDateStr(targetDateForward, -1),
+                getAdjacentDateStr(targetDateForward, 1),
+                targetDateBackward,
+                getAdjacentDateStr(targetDateBackward, -1),
+                getAdjacentDateStr(targetDateBackward, 1)
+            ]);
+
+            let hasSymptom = false;
+            datesToCheck.forEach(dateStr => {
+                if (dateStr >= cycle.start && dateStr < cycle.nextStart) {
+                    const record = records[dateStr];
+                    if (record && record.symptoms && record.symptoms.includes(symptomKey)) {
+                        hasSymptom = true;
+                    }
+                }
+            });
+
+            if (hasSymptom) {
+                matchCount++;
+            }
+        });
+
+        // Threshold logic: 3 matches out of 5-6 cycles, or 2 matches for <= 4 cycles
+        let threshold = 3;
+        if (recentCycles.length <= 4) {
+            threshold = 2;
+        }
+        
+        if (matchCount >= threshold) {
+            predictions.push({
+                type: 'symptom',
+                key: symptomKey,
+                name: symptomEmojis[symptomKey] || symptomKey,
+                emoji: symptomEmojis[symptomKey] ? symptomEmojis[symptomKey].split(" ")[0] : "⚠️",
+                cleanName: symptomEmojis[symptomKey] ? symptomEmojis[symptomKey].substring(symptomEmojis[symptomKey].indexOf(" ") + 1) : symptomKey,
+                count: matchCount,
+                total: recentCycles.length
+            });
+        }
+    });
+
+    // Also check Menstrual Pain (dolor menstrual, painLevel >= 2)
+    let painMatchCount = 0;
+    recentCycles.forEach(cycle => {
+        const targetDateForward = getAdjacentDateStr(cycle.start, cycleDay - 1);
+        const targetDateBackward = getAdjacentDateStr(cycle.nextStart, -daysBeforePeriod);
+        
+        const datesToCheck = new Set([
+            targetDateForward,
+            getAdjacentDateStr(targetDateForward, -1),
+            getAdjacentDateStr(targetDateForward, 1),
+            targetDateBackward,
+            getAdjacentDateStr(targetDateBackward, -1),
+            getAdjacentDateStr(targetDateBackward, 1)
+        ]);
+
+        let hasPain = false;
+        datesToCheck.forEach(dateStr => {
+            if (dateStr >= cycle.start && dateStr < cycle.nextStart) {
+                const record = records[dateStr];
+                if (record && record.painLevel >= 2) {
+                    hasPain = true;
+                }
+            }
+        });
+
+        if (hasPain) {
+            painMatchCount++;
+        }
+    });
+
+    let painThreshold = 3;
+    if (recentCycles.length <= 4) {
+        painThreshold = 2;
+    }
+
+    if (painMatchCount >= painThreshold) {
+        predictions.push({
+            type: 'pain',
+            key: 'pain',
+            name: 'Dolor menstrual',
+            emoji: '⚡',
+            cleanName: 'Molestias / Dolor menstrual',
+            count: painMatchCount,
+            total: recentCycles.length
+        });
+    }
+
+    return predictions;
+}
+
+function updateSymptomPredictions(stats) {
+    const box = document.getElementById("hoy-predictions-box");
+    const list = document.getElementById("predictions-list");
+    
+    if (!box || !list) return;
+
+    const predictions = getSymptomPredictions(stats);
+
+    if (predictions.length === 0) {
+        box.classList.add("hidden");
+        list.innerHTML = "";
+        return;
+    }
+
+    box.classList.remove("hidden");
+    list.innerHTML = "";
+
+    predictions.forEach(pred => {
+        const li = document.createElement("li");
+        li.className = "prediction-item";
+        
+        let descHtml = "";
+        if (pred.type === 'pain') {
+            descHtml = `Es probable que hoy experimentes <span class="prediction-desc-highlight">${pred.cleanName}</span>.`;
+        } else {
+            descHtml = `Es probable que hoy sientas <span class="prediction-desc-highlight">${pred.cleanName}</span>.`;
+        }
+
+        li.innerHTML = `
+            <span class="prediction-emoji">${pred.emoji}</span>
+            <div class="prediction-text">
+                <p>${descHtml}</p>
+                <span class="prediction-item-badge">Patrón detectado en ${pred.count} de tus últimos ${pred.total} ciclos</span>
+            </div>
+        `;
+        list.appendChild(li);
+    });
 }

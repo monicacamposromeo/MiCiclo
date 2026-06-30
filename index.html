@@ -31,11 +31,11 @@
             </div>
             
             <nav class="nav-menu">
-                <button class="nav-item active" data-tab="hoy-tab">
+                <button class="nav-item active" data-tab="ciclo-tab">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
                     </svg>
-                    <span>Hoy</span>
+                    <span>Ciclo</span>
                 </button>
                 <button class="nav-item" data-tab="registro-tab">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -91,31 +91,54 @@
                 </div>
             </header>
 
-            <!-- Screen 0: Hoy (Inicio) -->
-            <section id="hoy-tab" class="tab-content active">
+            <!-- Screen 0: Ciclo (Inicio) -->
+            <section id="ciclo-tab" class="tab-content active">
                 <div class="hoy-layout">
-                    <!-- Left: Current Phase and advice card -->
-                    <div class="card card-phase-main">
-                        <div class="phase-header">
-                            <span class="phase-badge" id="hoy-phase-badge">Fase del ciclo</span>
-                            <h2 id="hoy-phase-title">Cargando fase...</h2>
-                            <p id="hoy-cycle-day">Día -- del ciclo</p>
-                        </div>
-                        
-                        <div class="phase-progress-container">
-                            <svg class="phase-progress-svg" viewBox="0 0 100 100">
-                                <circle cx="50" cy="50" r="42" class="circle-bg"></circle>
-                                <circle cx="50" cy="50" r="42" class="circle-progress" id="hoy-progress-bar"></circle>
-                            </svg>
-                            <div class="circle-text">
-                                <span class="circle-number" id="hoy-days-rem">--</span>
-                                <span class="circle-label" id="hoy-days-label">días restantes</span>
+                    <!-- Left: Column containing main phase info and cycle wheel -->
+                    <div class="hoy-main-column">
+                        <!-- Current Cycle and Phase Main Card -->
+                        <div class="card card-phase-main">
+                            <!-- Cycle Wheel at the top -->
+                            <div class="cycle-wheel-container">
+                                <div class="wheel-svg-wrapper">
+                                    <svg viewBox="0 0 200 200" id="cycle-wheel-svg" class="cycle-wheel-svg">
+                                        <defs>
+                                            <filter id="marker-shadow" x="-30%" y="-30%" width="160%" height="160%">
+                                                <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.15"/>
+                                            </filter>
+                                        </defs>
+                                    </svg>
+                                    <div class="wheel-center-text">
+                                        <span class="wheel-day-total" id="wheel-day-total">Cargando ciclo...</span>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="phase-advice-box">
-                            <h4>🩺 ¿Cómo te puedes sentir?</h4>
-                            <p id="hoy-phase-advice">Cargando consejos fisiológicos y de bienestar para esta fase...</p>
+                            <!-- Predictions Box -->
+                            <div class="phase-predictions-box hidden" id="hoy-predictions-box" style="margin-top: 1rem; width: 100%;">
+                                <h4>🔮 Predicciones de Bienestar</h4>
+                                <ul id="predictions-list" class="predictions-list">
+                                    <!-- Dynamic prediction items will go here -->
+                                </ul>
+                            </div>
+
+                            <!-- Current Phase Title -->
+                            <div class="phase-header" style="margin-top: 1rem; width: 100%;">
+                                <span class="phase-badge" id="hoy-phase-badge">Fase del ciclo</span>
+                                <h2 id="hoy-phase-title">Cargando fase...</h2>
+                                <p id="hoy-cycle-day">Día -- del ciclo</p>
+                            </div>
+
+                            <!-- How you might feel -->
+                            <div class="phase-advice-box" style="margin-top: 1rem; width: 100%;">
+                                <h4>🩺 ¿Cómo te puedes sentir?</h4>
+                                <p id="hoy-phase-advice">Cargando consejos fisiológicos y de bienestar para esta fase...</p>
+                            </div>
+
+                            <!-- Legend for Cycle Wheel -->
+                            <div class="wheel-legend" id="wheel-legend" style="margin-top: 1.5rem; width: 100%;">
+                                <!-- Legend elements will be generated dynamically -->
+                            </div>
                         </div>
                     </div>
 
@@ -233,6 +256,10 @@
                                     <label class="symptom-chip">
                                         <input type="checkbox" name="symptoms" value="cramps">
                                         <span>⚡ Pinchazos</span>
+                                    </label>
+                                    <label class="symptom-chip">
+                                        <input type="checkbox" name="symptoms" value="nipples">
+                                        <span>🍒 Pezones sensibles</span>
                                     </label>
                                 </div>
                             </div>
