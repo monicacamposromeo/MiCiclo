@@ -9,6 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <!-- Supabase JS Client SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div class="app-container">
@@ -53,14 +55,25 @@
                     </svg>
                     <span>Calendario</span>
                 </button>
+                <button class="nav-item" data-tab="ciclos-tab">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+                    </svg>
+                    <span>Mis Ciclos</span>
+                </button>
             </nav>
 
             <div class="sidebar-footer">
-                <div class="user-profile">
-                    <div class="user-avatar">🌸</div>
+                <div class="user-profile user-profile-clickable" id="open-sync-modal-btn" title="Configurar Sincronización">
+                    <div class="user-avatar" id="sync-status-avatar">🌸</div>
                     <div class="user-info">
-                        <span class="user-name">Mi Espacio</span>
-                        <span class="user-status">Cuidado Diario</span>
+                        <span class="user-name" id="sync-user-name">Mi Espacio</span>
+                        <span class="user-status" id="sync-status-text">Sincronización local</span>
+                    </div>
+                    <div class="sync-indicator-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="sync-icon-svg" id="sync-status-icon">
+                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+                        </svg>
                     </div>
                 </div>
             </div>
@@ -174,124 +187,78 @@
 
             <!-- Screen 1: Registro y Diario -->
             <section id="registro-tab" class="tab-content">
-                <div class="grid-layout">
-                    <!-- Left: Form Card -->
-                    <div class="card card-form">
-                        <div class="card-header">
-                            <div class="card-icon">✍️</div>
-                            <h3>¿Cómo te sientes hoy?</h3>
+                <div class="diario-layout">
+                    <!-- Filter Panel -->
+                    <div class="filter-panel card">
+                        <div class="filter-row">
+                            <div class="filter-group">
+                                <label for="filter-month">Filtrar por Mes</label>
+                                <select id="filter-month" class="filter-select">
+                                    <option value="all">Todos los meses</option>
+                                    <!-- Months will be populated dynamically -->
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label for="filter-flow">Regla / Flujo</label>
+                                <select id="filter-flow" class="filter-select">
+                                    <option value="all">Todos los días</option>
+                                    <option value="period">Días de regla (sangrado)</option>
+                                    <option value="heavy">Periodo abundante</option>
+                                    <option value="medium">Periodo medio</option>
+                                    <option value="light">Periodo bajo</option>
+                                    <option value="spotting">Pérdidas</option>
+                                    <option value="dry">Días secos (sin regla)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label for="filter-pain">Dolor Menstrual</label>
+                                <select id="filter-pain" class="filter-select">
+                                    <option value="all">Cualquier nivel</option>
+                                    <option value="0">Sin dolor</option>
+                                    <option value="1">Dolor leve</option>
+                                    <option value="2">Dolor moderado</option>
+                                    <option value="3">Dolor fuerte</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label for="filter-symptom">Síntoma</label>
+                                <select id="filter-symptom" class="filter-select">
+                                    <option value="all">Todos los síntomas</option>
+                                    <option value="headache">🤕 Dolor de cabeza</option>
+                                    <option value="bloating">🎈 Hinchazón</option>
+                                    <option value="mood">🎭 Humor sensible</option>
+                                    <option value="cramps">⚡ Pinchazos</option>
+                                    <option value="nipples">🍒 Pezones sensibles</option>
+                                    <option value="backpain">🩹 Dolor lumbar</option>
+                                    <option value="fertile_mucus">💧 Flujo cervical fértil</option>
+                                </select>
+                            </div>
                         </div>
-                        <form id="period-form" class="period-form">
-                            <!-- Date Selector -->
-                            <div class="form-group">
-                                <label for="record-date">Fecha de registro</label>
-                                <div class="input-wrapper">
-                                    <input type="date" id="record-date" required>
-                                </div>
-                            </div>
-
-                            <!-- Period Active Toggle -->
-                            <div class="form-group toggle-group">
-                                <div class="toggle-label-desc">
-                                    <span class="label-title">¿Menstruación activa?</span>
-                                    <span class="label-subtitle">Indica si hoy estás con la regla</span>
-                                </div>
-                                <label class="switch">
-                                    <input type="checkbox" id="period-active">
-                                    <span class="slider round"></span>
-                                </label>
-                            </div>
-
-                            <!-- Menstrual Pain Level -->
-                            <div class="form-group">
-                                <label>Dolor menstrual</label>
-                                <div class="pain-selector">
-                                    <label class="pain-option pain-none">
-                                        <input type="radio" name="pain-level" value="0" checked>
-                                        <span class="pain-box">
-                                            <span class="pain-emoji">😊</span>
-                                            <span class="pain-text">Sin dolor</span>
-                                        </span>
-                                    </label>
-                                    <label class="pain-option pain-mild">
-                                        <input type="radio" name="pain-level" value="1">
-                                        <span class="pain-box">
-                                            <span class="pain-emoji">🙂</span>
-                                            <span class="pain-text">Leve</span>
-                                        </span>
-                                    </label>
-                                    <label class="pain-option pain-medium">
-                                        <input type="radio" name="pain-level" value="2">
-                                        <span class="pain-box">
-                                            <span class="pain-emoji">😔</span>
-                                            <span class="pain-text">Moderado</span>
-                                        </span>
-                                    </label>
-                                    <label class="pain-option pain-severe">
-                                        <input type="radio" name="pain-level" value="3">
-                                        <span class="pain-box">
-                                            <span class="pain-emoji">😫</span>
-                                            <span class="pain-text">Fuerte</span>
-                                        </span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <!-- Additional Symptoms (Chips) -->
-                            <div class="form-group">
-                                <label>Otros síntomas</label>
-                                <div class="symptoms-grid">
-                                    <label class="symptom-chip">
-                                        <input type="checkbox" name="symptoms" value="headache">
-                                        <span>🤕 Cansancio/Cabeza</span>
-                                    </label>
-                                    <label class="symptom-chip">
-                                        <input type="checkbox" name="symptoms" value="bloating">
-                                        <span>🎈 Hinchazón</span>
-                                    </label>
-                                    <label class="symptom-chip">
-                                        <input type="checkbox" name="symptoms" value="mood">
-                                        <span>🎭 Humor sensible</span>
-                                    </label>
-                                    <label class="symptom-chip">
-                                        <input type="checkbox" name="symptoms" value="cramps">
-                                        <span>⚡ Pinchazos</span>
-                                    </label>
-                                    <label class="symptom-chip">
-                                        <input type="checkbox" name="symptoms" value="nipples">
-                                        <span>🍒 Pezones sensibles</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <!-- Notes -->
-                            <div class="form-group">
-                                <label for="record-notes">Notas personales</label>
-                                <textarea id="record-notes" placeholder="Escribe cómo te sientes, medicamentos tomados, etc..." rows="3"></textarea>
-                            </div>
-
-                            <button type="submit" class="btn btn-primary">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                                    <polyline points="7 3 7 8 15 8"></polyline>
+                        <div class="filter-actions" style="margin-top: 1rem; display: flex; justify-content: flex-end;">
+                            <button id="clear-filters-btn" class="btn btn-secondary" style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 0.85rem; border-radius: var(--radius-sm);">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                                    <path d="M3 3v5h5"></path>
                                 </svg>
-                                Guardar Registro
+                                Limpiar Filtros
                             </button>
-                        </form>
+                        </div>
                     </div>
 
-                    <!-- Right: History List -->
-                    <div class="card card-history">
+                    <!-- History List Card (Full Width) -->
+                    <div class="card card-history-full">
                         <div class="card-header">
                             <div class="card-icon">📋</div>
-                            <h3>Historial Reciente</h3>
+                            <h3>Historial de Registros</h3>
                         </div>
                         <div class="history-list-container">
                             <div id="history-empty" class="empty-state hidden">
                                 <div class="empty-icon">🌸</div>
-                                <p>Aún no hay registros de tu ciclo.</p>
-                                <p class="empty-sub">¡Comienza registrando tu estado hoy!</p>
+                                <p>No se encontraron registros con estos filtros.</p>
+                                <p class="empty-sub">Intenta cambiar las opciones de búsqueda o registra un nuevo día.</p>
                             </div>
                             <div id="history-items" class="history-items">
                                 <!-- Dynamic history items will be loaded here -->
@@ -405,6 +372,26 @@
                     </div>
                 </div>
             </section>
+
+            <!-- Screen 4: Mis Ciclos -->
+            <section id="ciclos-tab" class="tab-content">
+                <div class="card card-ciclos-full">
+                    <div class="card-header">
+                        <div class="card-icon">🔄</div>
+                        <h3>Mis Ciclos</h3>
+                    </div>
+                    <div class="ciclos-list-container">
+                        <div id="ciclos-empty" class="empty-state hidden">
+                            <div class="empty-icon">🌸</div>
+                            <p>No hay suficientes registros para reconstruir tus ciclos.</p>
+                            <p class="empty-sub">Necesitamos que registres tus días de regla en al menos dos periodos separados.</p>
+                        </div>
+                        <div id="ciclos-items" class="ciclos-items">
+                            <!-- Dynamic cycles will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -422,6 +409,189 @@
             </div>
         </div>
     </div>
+
+    <!-- Record Form Modal -->
+    <div id="record-modal" class="modal-overlay hidden">
+        <div class="modal-content record-modal-content">
+            <button class="modal-close" id="close-record-modal">&times;</button>
+            <div class="card-header" style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;">
+                <div class="card-icon" style="font-size: 1.5rem;">✍️</div>
+                <h3 id="record-modal-title" style="margin: 0; font-family: var(--font-title); font-size: 1.3rem; font-weight: 700;">¿Cómo te sientes hoy?</h3>
+            </div>
+            
+            <form id="period-form" class="period-form">
+                <!-- Date Selector -->
+                <div class="form-group">
+                    <label for="record-date">Fecha de registro</label>
+                    <div class="input-wrapper">
+                        <input type="date" id="record-date" required>
+                    </div>
+                </div>
+
+                <!-- Menstruation Section Group -->
+                <div class="form-section-group">
+                    <h3>🩸 Menstruación</h3>
+                    
+                    <div class="form-group">
+                        <label>Cantidad de flujo</label>
+                        <div class="symptoms-grid">
+                            <label class="symptom-chip">
+                                <input type="checkbox" name="flow" value="heavy">
+                                <span>🔴 Periodo abundante</span>
+                            </label>
+                            <label class="symptom-chip">
+                                <input type="checkbox" name="flow" value="medium">
+                                <span>🩸 Periodo medio</span>
+                            </label>
+                            <label class="symptom-chip">
+                                <input type="checkbox" name="flow" value="light">
+                                <span>🔻 Periodo bajo</span>
+                            </label>
+                            <label class="symptom-chip">
+                                <input type="checkbox" name="flow" value="spotting">
+                                <span>💧 Perdidas</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Dolor menstrual</label>
+                        <div class="pain-selector">
+                            <label class="pain-option pain-mild">
+                                <input type="checkbox" name="pain-level" value="1">
+                                <span class="pain-box">
+                                    <span class="pain-emoji">🙂</span>
+                                    <span class="pain-text">Leve</span>
+                                </span>
+                            </label>
+                            <label class="pain-option pain-medium">
+                                <input type="checkbox" name="pain-level" value="2">
+                                <span class="pain-box">
+                                    <span class="pain-emoji">😔</span>
+                                    <span class="pain-text">Moderado</span>
+                                </span>
+                            </label>
+                            <label class="pain-option pain-severe">
+                                <input type="checkbox" name="pain-level" value="3">
+                                <span class="pain-box">
+                                    <span class="pain-emoji">😫</span>
+                                    <span class="pain-text">Fuerte</span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Symptoms (Chips) -->
+                <div class="form-group">
+                    <label>Otros síntomas</label>
+                    <div class="symptoms-grid">
+                        <label class="symptom-chip">
+                            <input type="checkbox" name="symptoms" value="headache">
+                            <span>🤕 Dolor de cabeza</span>
+                        </label>
+                        <label class="symptom-chip">
+                            <input type="checkbox" name="symptoms" value="bloating">
+                            <span>🎈 Hinchazón</span>
+                        </label>
+                        <label class="symptom-chip">
+                            <input type="checkbox" name="symptoms" value="mood">
+                            <span>🎭 Humor sensible</span>
+                        </label>
+                        <label class="symptom-chip">
+                            <input type="checkbox" name="symptoms" value="cramps">
+                            <span>⚡ Pinchazos</span>
+                        </label>
+                        <label class="symptom-chip">
+                            <input type="checkbox" name="symptoms" value="nipples">
+                            <span>🍒 Pezones sensibles</span>
+                        </label>
+                        <label class="symptom-chip">
+                            <input type="checkbox" name="symptoms" value="backpain">
+                            <span>🩹 Dolor lumbar</span>
+                        </label>
+                        <label class="symptom-chip">
+                            <input type="checkbox" name="symptoms" value="fertile_mucus">
+                            <span>💧 Flujo cervical fértil</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div class="form-group" style="margin-top: 1.2rem;">
+                    <label for="record-notes">Notas personales</label>
+                    <textarea id="record-notes" placeholder="Escribe cómo te sientes, medicamentos tomados, etc..." rows="3"></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="margin-top: 1.5rem; width: 100%;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                    Guardar Registro
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Supabase Sync Settings Modal -->
+    <div id="sync-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button class="modal-close" id="close-sync-modal">&times;</button>
+            <h3 style="margin-top: 0; font-family: var(--font-title); font-size: 1.4rem; font-weight: 700; color: var(--text-dark); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; text-align: left;">
+                ☁️ Sincronización Supabase
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-light); margin-bottom: 1.5rem; line-height: 1.4; text-align: left;">
+                Guarda tus datos en la nube de Supabase y compártelos con otros navegadores o dispositivos configurando el mismo código.
+            </p>
+
+            <form id="sync-form" style="display: flex; flex-direction: column; gap: 1.2rem;">
+                <div class="form-group" style="text-align: left;">
+                    <label for="supabase-url" style="font-size: 0.85rem; font-weight: 600; color: var(--text-dark); margin-bottom: 0.4rem; display: block;">
+                        URL del Proyecto Supabase
+                    </label>
+                    <input type="url" id="supabase-url" placeholder="https://tu-proyecto.supabase.co" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-family: inherit; font-size: 0.9rem; box-sizing: border-box;" required>
+                </div>
+
+                <div class="form-group" style="text-align: left;">
+                    <label for="supabase-key" style="font-size: 0.85rem; font-weight: 600; color: var(--text-dark); margin-bottom: 0.4rem; display: block;">
+                        API Key Pública (anon)
+                    </label>
+                    <input type="password" id="supabase-key" placeholder="Tu anon key..." style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-family: inherit; font-size: 0.9rem; box-sizing: border-box;" required>
+                </div>
+
+                <div class="form-group" style="text-align: left;">
+                    <label for="supabase-sync-code" style="font-size: 0.85rem; font-weight: 600; color: var(--text-dark); margin-bottom: 0.4rem; display: block;">
+                        Código de Sincronización
+                    </label>
+                    <div style="display: flex; gap: 0.5rem; width: 100%;">
+                        <input type="text" id="supabase-sync-code" placeholder="Ej. mi-secreto-compartido" style="flex: 1; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-family: inherit; font-size: 0.9rem; box-sizing: border-box; min-width: 0;" required>
+                        <button type="button" id="generate-code-btn" class="btn btn-secondary" style="padding: 0.8rem 1rem; white-space: nowrap; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; cursor: pointer; height: auto;">
+                            Generar
+                        </button>
+                    </div>
+                    <span style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.3rem; display: block; line-height: 1.3;">
+                        Usa el mismo código en otro dispositivo para ver y sincronizar los mismos datos.
+                    </span>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 0.8rem; margin-top: 1rem;">
+                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.9rem; font-size: 0.95rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer;">
+                        Guardar y Conectar
+                    </button>
+                    <button type="button" id="disconnect-sync-btn" class="btn btn-danger hidden" style="width: 100%; padding: 0.9rem; font-size: 0.95rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer;">
+                        Desconectar Nube
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Floating Action Button (FAB) -->
+    <button class="fab-btn" id="open-record-modal-btn" title="Nuevo Registro">
+        <span class="fab-icon">+</span>
+    </button>
 
     <!-- Toast Notification for feedback -->
     <div id="toast" class="toast hidden">Registro guardado con éxito</div>

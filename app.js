@@ -6,11 +6,13 @@ let ovulationDates = new Set();
 
 // Emojis for symptoms
 const symptomEmojis = {
-    headache: "🤕 Cansancio/Cabeza",
+    headache: "🤕 Dolor de cabeza",
     bloating: "🎈 Hinchazón",
     mood: "🎭 Humor sensible",
     cramps: "⚡ Pinchazos",
-    nipples: "🍒 Pezones sensibles"
+    nipples: "🍒 Pezones sensibles",
+    backpain: "🩹 Dolor lumbar",
+    fertile_mucus: "💧 Flujo cervical fértil"
 };
 
 // --- Mock Data Generator ---
@@ -75,13 +77,20 @@ document.addEventListener("DOMContentLoaded", () => {
     initForm();
     initCalendarNav();
     initModal();
+    initFilters();
     
     // Initial Render
     updateUI();
+
+    // Initialize Supabase Sync
+    initSupabaseSync();
 });
 
-function saveRecords() {
+function saveRecords(dateStr = null) {
     localStorage.setItem("miciclo_records", JSON.stringify(records));
+    if (supabaseClient && dateStr && records[dateStr]) {
+        pushRecordToSupabase(dateStr, records[dateStr]);
+    }
 }
 
 // --- Tab Switching Navigation ---
@@ -102,6 +111,8 @@ function initTabs() {
             // Re-render calendar to adjust grid sizing if entering calendar tab
             if (targetTab === "calendario-tab") {
                 renderCalendar();
+            } else if (targetTab === "ciclos-tab") {
+                renderCyclesList();
             }
         });
     });
@@ -110,11 +121,61 @@ function initTabs() {
 // --- Form Handling ---
 function initForm() {
     const dateInput = document.getElementById("record-date");
-    const periodActiveInput = document.getElementById("period-active");
-    const painRadios = document.getElementsByName("pain-level");
+    const flowCheckboxes = document.getElementsByName("flow");
+    const painCheckboxes = document.getElementsByName("pain-level");
     const symptomsCheckboxes = document.getElementsByName("symptoms");
     const notesInput = document.getElementById("record-notes");
     const form = document.getElementById("period-form");
+
+    // Modal controls
+    const recordModal = document.getElementById("record-modal");
+    const openModalBtn = document.getElementById("open-record-modal-btn");
+    const closeModalBtn = document.getElementById("close-record-modal");
+
+    if (openModalBtn && recordModal) {
+        openModalBtn.addEventListener("click", () => {
+            const todayStr = "2026-06-30"; // App Context Date
+            dateInput.value = todayStr;
+            loadRecordIntoForm(todayStr);
+            recordModal.classList.remove("hidden");
+        });
+    }
+
+    if (closeModalBtn && recordModal) {
+        closeModalBtn.addEventListener("click", () => {
+            recordModal.classList.add("hidden");
+        });
+    }
+
+    if (recordModal) {
+        recordModal.addEventListener("click", (e) => {
+            if (e.target === recordModal) {
+                recordModal.classList.add("hidden");
+            }
+        });
+    }
+
+    // Enforce mutual exclusivity for flow checkboxes (allowing deselection)
+    flowCheckboxes.forEach(cb => {
+        cb.addEventListener("change", () => {
+            if (cb.checked) {
+                flowCheckboxes.forEach(otherCb => {
+                    if (otherCb !== cb) otherCb.checked = false;
+                });
+            }
+        });
+    });
+
+    // Enforce mutual exclusivity for pain checkboxes (allowing deselection)
+    painCheckboxes.forEach(cb => {
+        cb.addEventListener("change", () => {
+            if (cb.checked) {
+                painCheckboxes.forEach(otherCb => {
+                    if (otherCb !== cb) otherCb.checked = false;
+                });
+            }
+        });
+    });
 
     // Load existing record values when date changes
     dateInput.addEventListener("change", () => {
@@ -128,29 +189,40 @@ function initForm() {
         const dateVal = dateInput.value;
         if (!dateVal) return;
 
+        // Get selected flow quantity
+        let selectedFlow = null;
+        flowCheckboxes.forEach(cb => {
+            if (cb.checked) selectedFlow = cb.value;
+        });
+
+        // Determine if period is active (spotting is considered bleeding but doesn't start a cycle/count as periodActive)
+        const isPeriodActive = (selectedFlow === "heavy" || selectedFlow === "medium" || selectedFlow === "light");
+
         // Get selected symptoms
         const selectedSymptoms = [];
         symptomsCheckboxes.forEach(cb => {
             if (cb.checked) selectedSymptoms.push(cb.value);
         });
 
-        // Get selected pain level
+        // Get selected pain level (defaults to 0 if none checked)
         let selectedPain = 0;
-        painRadios.forEach(radio => {
-            if (radio.checked) selectedPain = parseInt(radio.value);
+        painCheckboxes.forEach(cb => {
+            if (cb.checked) selectedPain = parseInt(cb.value);
         });
 
         // Update record state
         records[dateVal] = {
-            periodActive: periodActiveInput.checked,
+            periodActive: isPeriodActive,
+            flow: selectedFlow,
             painLevel: selectedPain,
             symptoms: selectedSymptoms,
             notes: notesInput.value.trim()
         };
 
-        saveRecords();
+        saveRecords(dateVal);
         updateUI();
         showToast("Registro guardado con éxito 🌸");
+        if (recordModal) recordModal.classList.add("hidden");
     });
 
     // Initial load for default date (today)
@@ -158,18 +230,27 @@ function initForm() {
 }
 
 function loadRecordIntoForm(dateStr) {
-    const periodActiveInput = document.getElementById("period-active");
-    const painRadios = document.getElementsByName("pain-level");
+    const flowCheckboxes = document.getElementsByName("flow");
+    const painCheckboxes = document.getElementsByName("pain-level");
     const symptomsCheckboxes = document.getElementsByName("symptoms");
     const notesInput = document.getElementById("record-notes");
 
     const record = records[dateStr];
 
     if (record) {
-        periodActiveInput.checked = record.periodActive;
+        // Load flow quantity
+        let flowVal = record.flow;
+        // Fallback for backwards compatibility: if periodActive is true, default to "medium" flow
+        if (!flowVal && record.periodActive) {
+            flowVal = "medium";
+        }
+
+        flowCheckboxes.forEach(cb => {
+            cb.checked = (flowVal === cb.value);
+        });
         
-        painRadios.forEach(radio => {
-            radio.checked = parseInt(radio.value) === record.painLevel;
+        painCheckboxes.forEach(cb => {
+            cb.checked = (parseInt(cb.value) === record.painLevel);
         });
 
         symptomsCheckboxes.forEach(cb => {
@@ -179,9 +260,11 @@ function loadRecordIntoForm(dateStr) {
         notesInput.value = record.notes || "";
     } else {
         // Reset form for empty date
-        periodActiveInput.checked = false;
-        painRadios.forEach(radio => {
-            radio.checked = parseInt(radio.value) === 0; // default no pain
+        flowCheckboxes.forEach(cb => {
+            cb.checked = false;
+        });
+        painCheckboxes.forEach(cb => {
+            cb.checked = false; // default no pain
         });
         symptomsCheckboxes.forEach(cb => {
             cb.checked = false;
@@ -216,6 +299,9 @@ function updateUI() {
         document.getElementById("next-ovulation-est").textContent = "Más registros necesarios";
     }
 
+    // Populate month options in filter
+    populateFilterMonths();
+
     // 2. Render History List
     renderHistory();
 
@@ -230,6 +316,9 @@ function updateUI() {
 
     // 6. Update Symptom Predictions
     updateSymptomPredictions(stats);
+
+    // 7. Render Cycles List
+    renderCyclesList();
 }
 
 function calculateCycleStats() {
@@ -351,6 +440,14 @@ function calculateCycleStats() {
         }
     }
 
+    // 3. Add any dates where user logged fertile cervical mucus
+    Object.keys(records).forEach(dateStr => {
+        const record = records[dateStr];
+        if (record && record.symptoms && record.symptoms.includes("fertile_mucus")) {
+            fertileDates.add(dateStr);
+        }
+    });
+
     return {
         avgCycleLength,
         avgPeriodLength,
@@ -418,19 +515,76 @@ function renderHistory() {
     const emptyState = document.getElementById("history-empty");
     const container = document.getElementById("history-items");
     
+    if (!container) return;
+
     // Clear container
     container.innerHTML = "";
 
     const sortedDates = Object.keys(records).sort().reverse();
 
     if (sortedDates.length === 0) {
-        emptyState.classList.remove("hidden");
+        if (emptyState) emptyState.classList.remove("hidden");
         return;
     }
 
-    emptyState.classList.add("hidden");
+    // Get filter values
+    const filterMonthVal = document.getElementById("filter-month") ? document.getElementById("filter-month").value : "all";
+    const filterFlowVal = document.getElementById("filter-flow") ? document.getElementById("filter-flow").value : "all";
+    const filterPainVal = document.getElementById("filter-pain") ? document.getElementById("filter-pain").value : "all";
+    const filterSymptomVal = document.getElementById("filter-symptom") ? document.getElementById("filter-symptom").value : "all";
 
-    sortedDates.forEach(dateStr => {
+    // Filter dates based on options
+    const filteredDates = sortedDates.filter(dateStr => {
+        const record = records[dateStr];
+        if (!record) return false;
+
+        // 1. Month filter (YYYY-MM)
+        if (filterMonthVal !== "all" && !dateStr.startsWith(filterMonthVal)) {
+            return false;
+        }
+
+        // 2. Flow/Period filter
+        if (filterFlowVal !== "all") {
+            if (filterFlowVal === "period") {
+                if (!record.periodActive) return false;
+            } else if (filterFlowVal === "dry") {
+                if (record.periodActive || record.flow === "spotting") return false;
+            } else {
+                if (record.flow !== filterFlowVal) return false;
+            }
+        }
+
+        // 3. Pain Level filter
+        if (filterPainVal !== "all") {
+            const painVal = parseInt(filterPainVal);
+            if (record.painLevel !== painVal) return false;
+        }
+
+        // 4. Symptom filter
+        if (filterSymptomVal !== "all") {
+            if (!record.symptoms || !record.symptoms.includes(filterSymptomVal)) {
+                return false;
+            }
+        }
+
+        return true;
+    });
+
+    if (filteredDates.length === 0) {
+        if (emptyState) {
+            emptyState.classList.remove("hidden");
+            // Customize empty state message if filters are active
+            const emptyText = emptyState.querySelector("p");
+            if (emptyText) {
+                emptyText.textContent = "No se encontraron registros con estos filtros.";
+            }
+        }
+        return;
+    }
+
+    if (emptyState) emptyState.classList.add("hidden");
+
+    filteredDates.forEach(dateStr => {
         const record = records[dateStr];
         const itemDiv = document.createElement("div");
         itemDiv.className = `history-item ${record.periodActive ? 'period-active' : ''}`;
@@ -485,13 +639,9 @@ function renderHistory() {
             const dateInput = document.getElementById("record-date");
             dateInput.value = dateStr;
             loadRecordIntoForm(dateStr);
-            // Switch to Diario y Registro tab (if not already active)
-            const tabBtn = document.querySelector('[data-tab="registro-tab"]');
-            if (tabBtn) tabBtn.click();
-            // Pulse animation on the form card to highlight it
-            const formCard = document.querySelector(".card-form");
-            formCard.style.transform = "scale(1.02)";
-            setTimeout(() => { formCard.style.transform = "none"; }, 300);
+            
+            const recordModal = document.getElementById("record-modal");
+            if (recordModal) recordModal.classList.remove("hidden");
         });
 
         container.appendChild(itemDiv);
@@ -501,6 +651,9 @@ function renderHistory() {
 function deleteRecord(dateStr) {
     delete records[dateStr];
     saveRecords();
+    if (supabaseClient) {
+        deleteRecordFromSupabase(dateStr);
+    }
     updateUI();
     // If deleted date was loaded in the form, refresh form
     const dateInput = document.getElementById("record-date");
@@ -789,16 +942,11 @@ function openDayDetailsModal(dateStr, record, isPredicted) {
             dateInput.value = dateStr;
             loadRecordIntoForm(dateStr);
             
-            // Switch tabs
-            const tabBtn = document.querySelector('[data-tab="registro-tab"]');
-            if (tabBtn) tabBtn.click();
-            
             modal.classList.add("hidden");
 
-            // Focus on form card
-            const formCard = document.querySelector(".card-form");
-            formCard.style.transform = "scale(1.02)";
-            setTimeout(() => { formCard.style.transform = "none"; }, 300);
+            // Open the record modal
+            const recordModal = document.getElementById("record-modal");
+            if (recordModal) recordModal.classList.remove("hidden");
         };
 
     } else {
@@ -826,11 +974,11 @@ function openDayDetailsModal(dateStr, record, isPredicted) {
             dateInput.value = dateStr;
             loadRecordIntoForm(dateStr);
             
-            // Switch tabs
-            const tabBtn = document.querySelector('[data-tab="registro-tab"]');
-            if (tabBtn) tabBtn.click();
-            
             modal.classList.add("hidden");
+
+            // Open the record modal
+            const recordModal = document.getElementById("record-modal");
+            if (recordModal) recordModal.classList.remove("hidden");
         };
     }
 
@@ -1425,7 +1573,7 @@ function getSymptomPredictions(stats) {
     if (recentCycles.length === 0) return [];
 
     // Analyze symptoms
-    const symptomsToAnalyze = ['headache', 'bloating', 'mood', 'cramps', 'nipples'];
+    const symptomsToAnalyze = ['headache', 'bloating', 'mood', 'cramps', 'nipples', 'backpain', 'fertile_mucus'];
     const predictions = [];
 
     symptomsToAnalyze.forEach(symptomKey => {
@@ -1566,4 +1714,617 @@ function updateSymptomPredictions(stats) {
         `;
         list.appendChild(li);
     });
+}
+
+// --- Panel de Filtros del Historial ---
+function initFilters() {
+    const filterMonth = document.getElementById("filter-month");
+    const filterFlow = document.getElementById("filter-flow");
+    const filterPain = document.getElementById("filter-pain");
+    const filterSymptom = document.getElementById("filter-symptom");
+    const clearBtn = document.getElementById("clear-filters-btn");
+
+    if (filterMonth) filterMonth.addEventListener("change", renderHistory);
+    if (filterFlow) filterFlow.addEventListener("change", renderHistory);
+    if (filterPain) filterPain.addEventListener("change", renderHistory);
+    if (filterSymptom) filterSymptom.addEventListener("change", renderHistory);
+
+    if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+            if (filterMonth) filterMonth.value = "all";
+            if (filterFlow) filterFlow.value = "all";
+            if (filterPain) filterPain.value = "all";
+            if (filterSymptom) filterSymptom.value = "all";
+            renderHistory();
+        });
+    }
+}
+
+function populateFilterMonths() {
+    const select = document.getElementById("filter-month");
+    if (!select) return;
+
+    // Keep current selection
+    const currentSelection = select.value;
+    
+    select.innerHTML = '<option value="all">Todos los meses</option>';
+    
+    const months = new Set();
+    Object.keys(records).forEach(dateStr => {
+        const parts = dateStr.split("-");
+        if (parts.length === 3) {
+            const yearMonth = `${parts[0]}-${parts[1]}`; // YYYY-MM
+            months.add(yearMonth);
+        }
+    });
+
+    const sortedMonths = Array.from(months).sort().reverse();
+    const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+    
+    sortedMonths.forEach(ym => {
+        const [year, monthStr] = ym.split("-");
+        const monthIdx = parseInt(monthStr) - 1;
+        const name = `${monthNames[monthIdx]} ${year}`;
+        const opt = document.createElement("option");
+        opt.value = ym;
+        opt.textContent = name;
+        select.appendChild(opt);
+    });
+
+    // Restore selection if still exists
+    select.value = currentSelection;
+    if (!select.value) select.value = "all";
+}
+
+// --- Renderizar Pantalla de Mis Ciclos ---
+function renderCyclesList() {
+    const emptyState = document.getElementById("ciclos-empty");
+    const container = document.getElementById("ciclos-items");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    const stats = calculateCycleStats();
+    const startDates = stats.startDates;
+
+    if (startDates.length === 0) {
+        if (emptyState) emptyState.classList.remove("hidden");
+        return;
+    }
+
+    if (emptyState) emptyState.classList.add("hidden");
+
+    const todayStr = "2026-06-30"; // App Context Date (today)
+
+    // Reconstruct cycles list (from most recent to oldest)
+    const cyclesList = [];
+    for (let i = startDates.length - 1; i >= 0; i--) {
+        const start = startDates[i];
+        let end = "";
+        let duration = 0;
+        let isCurrent = false;
+
+        if (i < startDates.length - 1) {
+            // Completed cycle
+            const nextStart = startDates[i + 1];
+            end = getAdjacentDateStr(nextStart, -1);
+            duration = getDaysDifference(start, nextStart);
+            isCurrent = false;
+        } else {
+            // Current in-progress cycle
+            end = todayStr;
+            duration = getDaysDifference(start, todayStr);
+            isCurrent = true;
+        }
+
+        cyclesList.push({
+            start,
+            end,
+            duration,
+            isCurrent,
+            index: i + 1
+        });
+    }
+
+    const painLabels = ["Sin dolor", "Leve", "Moderado", "Fuerte"];
+    const painColors = ["var(--text-muted)", "var(--pain-1)", "var(--pain-2)", "var(--pain-3)"];
+
+    cyclesList.forEach(cycle => {
+        // 1. Calculate consecutive bleeding days from start
+        let bleedingDays = 1;
+        let nextDateStr = getAdjacentDateStr(cycle.start, 1);
+        while (records[nextDateStr] && records[nextDateStr].periodActive) {
+            bleedingDays++;
+            nextDateStr = getAdjacentDateStr(nextDateStr, 1);
+        }
+
+        // 2. Scan symptoms and pain in the cycle dates
+        const uniqueSymptoms = new Set();
+        let maxPain = 0;
+
+        let currentDate = new Date(cycle.start + "T00:00:00");
+        const endDateObj = new Date(cycle.end + "T00:00:00");
+
+        while (currentDate <= endDateObj) {
+            const dateStr = formatDateKey(currentDate);
+            const rec = records[dateStr];
+            if (rec) {
+                if (rec.symptoms) {
+                    rec.symptoms.forEach(s => uniqueSymptoms.add(s));
+                }
+                if (rec.painLevel > maxPain) {
+                    maxPain = rec.painLevel;
+                }
+            }
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        // Format dates to Spanish short form
+        const startObj = new Date(cycle.start + "T00:00:00");
+        const endObj = new Date(cycle.end + "T00:00:00");
+        const dateRangeStr = cycle.isCurrent 
+            ? `${formatDateShort(startObj)} - En curso`
+            : `${formatDateShort(startObj)} - ${formatDateShort(endObj)}`;
+
+        // Build symptoms tags markup
+        let symptomsHtml = "";
+        if (uniqueSymptoms.size > 0) {
+            const tags = Array.from(uniqueSymptoms).map(s => {
+                return `<span class="ciclo-symptom-tag">${symptomEmojis[s] || s}</span>`;
+            }).join("");
+            symptomsHtml = `<div class="ciclo-symptom-tags">${tags}</div>`;
+        } else {
+            symptomsHtml = `<span style="font-size: 0.88rem; color: var(--text-muted);">Ninguno</span>`;
+        }
+
+        // 3. Build timeline progress bar
+        let timelineHtml = "";
+        const ovulationDay = cycle.duration - 14;
+        const fertileStart = ovulationDay - 5;
+        const fertileEnd = ovulationDay - 1;
+
+        for (let d = 1; d <= cycle.duration; d++) {
+            const currentDateStr = getAdjacentDateStr(cycle.start, d - 1);
+            const isLogged = !!records[currentDateStr];
+            
+            let phaseClass = "phase-regular";
+            let phaseName = "Día regular";
+            
+            if (d <= bleedingDays) {
+                phaseClass = "phase-period";
+                phaseName = "Día de regla";
+            } else if (d === ovulationDay) {
+                phaseClass = "phase-ovulation";
+                phaseName = "Día de ovulación";
+            } else if (d >= fertileStart && d <= fertileEnd) {
+                phaseClass = "phase-fertile";
+                phaseName = "Día fértil";
+            }
+            
+            const logStatusText = isLogged ? "Registrado" : "Sin registro";
+            const tooltip = `Día ${d}: ${phaseName} (${logStatusText})`;
+            
+            timelineHtml += `
+                <div class="ciclo-timeline-day ${phaseClass}" 
+                     data-logged="${isLogged}" 
+                     title="${tooltip}"></div>
+            `;
+        }
+
+        const card = document.createElement("div");
+        card.className = "ciclo-card";
+
+        const titleText = cycle.isCurrent ? "Ciclo Actual" : `Ciclo #${cycle.index}`;
+        const badgeClass = cycle.isCurrent ? "en-curso" : "completado";
+        const badgeText = cycle.isCurrent ? "En curso" : "Completado";
+
+        card.innerHTML = `
+            <div class="ciclo-card-header">
+                <div class="ciclo-card-title">
+                    <span>🔄</span> ${titleText}
+                    <span class="ciclo-status-badge ${badgeClass}">${badgeText}</span>
+                </div>
+                <div class="ciclo-card-duration">
+                    ${cycle.duration} d
+                    <span>${cycle.isCurrent ? 'Transcurridos' : 'Duración'}</span>
+                </div>
+            </div>
+            <div class="ciclo-card-body">
+                <div class="ciclo-timeline-container">
+                    <span class="ciclo-info-label" style="margin-bottom: 2px; display: block;">Línea de tiempo del ciclo (Sólido = Registrado)</span>
+                    <div class="ciclo-timeline">
+                        ${timelineHtml}
+                    </div>
+                </div>
+
+                <div class="ciclo-info-sec">
+                    <span class="ciclo-info-label">Fechas del ciclo</span>
+                    <span class="ciclo-info-value">📅 ${dateRangeStr}</span>
+                </div>
+                <div class="ciclo-info-sec">
+                    <span class="ciclo-info-label">Fase de regla</span>
+                    <span class="ciclo-info-value">🩸 ${bleedingDays} días de regla</span>
+                </div>
+                <div class="ciclo-info-sec">
+                    <span class="ciclo-info-label">Intensidad máxima de dolor</span>
+                    <span class="ciclo-info-value" style="color: ${painColors[maxPain]}; font-weight: 600;">
+                        ⚡ ${painLabels[maxPain]}
+                    </span>
+                </div>
+                <div class="ciclo-info-sec">
+                    <span class="ciclo-info-label">Síntomas y molestias</span>
+                    ${symptomsHtml}
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// ==========================================
+// --- Supabase Sincronización ---
+// ==========================================
+let supabaseClient = null;
+let supabaseConfig = { url: "", key: "", syncCode: "" };
+
+function initSupabaseSync() {
+    const openSyncModalBtn = document.getElementById("open-sync-modal-btn");
+    const syncModal = document.getElementById("sync-modal");
+    const closeSyncModalBtn = document.getElementById("close-sync-modal");
+    const syncForm = document.getElementById("sync-form");
+    const supabaseUrlInput = document.getElementById("supabase-url");
+    const supabaseKeyInput = document.getElementById("supabase-key");
+    const supabaseSyncCodeInput = document.getElementById("supabase-sync-code");
+    const generateCodeBtn = document.getElementById("generate-code-btn");
+    const disconnectSyncBtn = document.getElementById("disconnect-sync-btn");
+    const syncStatusText = document.getElementById("sync-status-text");
+    const syncStatusIcon = document.getElementById("sync-status-icon");
+
+    // Load stored config
+    const storedConfig = localStorage.getItem("miciclo_supabase_config");
+    if (storedConfig) {
+        try {
+            supabaseConfig = JSON.parse(storedConfig);
+            supabaseUrlInput.value = supabaseConfig.url || "";
+            supabaseKeyInput.value = supabaseConfig.key || "";
+            supabaseSyncCodeInput.value = supabaseConfig.syncCode || "";
+            
+            connectToSupabase(supabaseConfig.url, supabaseConfig.key, supabaseConfig.syncCode, false);
+        } catch (e) {
+            console.error("Error cargando configuración de Supabase:", e);
+        }
+    }
+
+    // Modal event listeners
+    if (openSyncModalBtn) {
+        openSyncModalBtn.addEventListener("click", () => {
+            if (syncModal) syncModal.classList.remove("hidden");
+        });
+    }
+
+    if (closeSyncModalBtn) {
+        closeSyncModalBtn.addEventListener("click", () => {
+            if (syncModal) syncModal.classList.add("hidden");
+        });
+    }
+
+    if (syncModal) {
+        syncModal.addEventListener("click", (e) => {
+            if (e.target === syncModal) {
+                syncModal.classList.add("hidden");
+            }
+        });
+    }
+
+    // Generate random sync code
+    if (generateCodeBtn) {
+        generateCodeBtn.addEventListener("click", () => {
+            const randomCode = 'ciclo-' + Math.random().toString(36).substring(2, 8) + '-' + Math.random().toString(36).substring(2, 8);
+            supabaseSyncCodeInput.value = randomCode;
+        });
+    }
+
+    // Disconnect sync
+    if (disconnectSyncBtn) {
+        disconnectSyncBtn.addEventListener("click", () => {
+            disconnectSupabase();
+        });
+    }
+
+    // Sync Form Submit
+    if (syncForm) {
+        syncForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const url = supabaseUrlInput.value.trim();
+            const key = supabaseKeyInput.value.trim();
+            const syncCode = supabaseSyncCodeInput.value.trim();
+
+            const submitBtn = syncForm.querySelector('button[type="submit"]');
+            const origBtnText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = "Conectando...";
+
+            const connected = await connectToSupabase(url, key, syncCode, true);
+            
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = origBtnText;
+
+            if (connected) {
+                if (syncModal) syncModal.classList.add("hidden");
+            }
+        });
+    }
+}
+
+// Connect to Supabase
+async function connectToSupabase(url, key, syncCode, showToasts = true) {
+    const syncStatusText = document.getElementById("sync-status-text");
+    const syncStatusIcon = document.getElementById("sync-status-icon");
+    const disconnectSyncBtn = document.getElementById("disconnect-sync-btn");
+
+    try {
+        if (typeof window.supabase === 'undefined') {
+            throw new Error("El SDK de Supabase no está cargado. Revisa tu conexión de red.");
+        }
+
+        if (syncStatusIcon) {
+            syncStatusIcon.classList.add("syncing");
+            syncStatusIcon.classList.remove("sync-status-connected", "sync-status-error");
+        }
+
+        const client = window.supabase.createClient(url, key);
+
+        // Test request to verify connection & table
+        const { data, error } = await client
+            .from("miciclo_records")
+            .select("date")
+            .limit(1);
+
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        // Connection success
+        supabaseClient = client;
+        supabaseConfig = { url, key, syncCode };
+        localStorage.setItem("miciclo_supabase_config", JSON.stringify(supabaseConfig));
+
+        if (syncStatusText) {
+            const displayCode = syncCode.length > 12 ? syncCode.substring(0, 10) + "..." : syncCode;
+            syncStatusText.textContent = `Nube: ${displayCode}`;
+            syncStatusText.style.color = "var(--text-main)";
+        }
+        if (syncStatusIcon) {
+            syncStatusIcon.classList.remove("syncing", "sync-status-error");
+            syncStatusIcon.classList.add("sync-status-connected");
+        }
+        if (disconnectSyncBtn) {
+            disconnectSyncBtn.classList.remove("hidden");
+        }
+
+        if (showToasts) {
+            showToast("Conectado a Supabase ☁️");
+        }
+
+        await syncAllRecords(showToasts);
+        return true;
+
+    } catch (e) {
+        console.error("Supabase Connection Error:", e);
+        supabaseClient = null;
+        if (syncStatusText) {
+            syncStatusText.textContent = "Error de Conexión";
+            syncStatusText.style.color = "#E74C3C";
+        }
+        if (syncStatusIcon) {
+            syncStatusIcon.classList.remove("syncing", "sync-status-connected");
+            syncStatusIcon.classList.add("sync-status-error");
+        }
+        if (disconnectSyncBtn) {
+            disconnectSyncBtn.classList.add("hidden");
+        }
+
+        if (showToasts) {
+            alert(`Error al conectar con Supabase:\n${e.message}\n\nAsegúrate de ingresar la URL y Key correctas y haber ejecutado el script SQL para crear la tabla 'miciclo_records'.`);
+        }
+        return false;
+    }
+}
+
+// Disconnect from Supabase
+function disconnectSupabase() {
+    const syncStatusText = document.getElementById("sync-status-text");
+    const syncStatusIcon = document.getElementById("sync-status-icon");
+    const disconnectSyncBtn = document.getElementById("disconnect-sync-btn");
+    const syncForm = document.getElementById("sync-form");
+
+    supabaseClient = null;
+    supabaseConfig = { url: "", key: "", syncCode: "" };
+    localStorage.removeItem("miciclo_supabase_config");
+
+    if (syncForm) {
+        syncForm.reset();
+    }
+
+    if (syncStatusText) {
+        syncStatusText.textContent = "Sincronización local";
+        syncStatusText.style.color = "";
+    }
+    if (syncStatusIcon) {
+        syncStatusIcon.classList.remove("syncing", "sync-status-connected", "sync-status-error");
+    }
+    if (disconnectSyncBtn) {
+        disconnectSyncBtn.classList.add("hidden");
+    }
+
+    showToast("Supabase desconectado.");
+}
+
+// Sync all records bidirectionally
+async function syncAllRecords(showToasts = true) {
+    if (!supabaseClient || !supabaseConfig.syncCode) return;
+
+    const syncStatusIcon = document.getElementById("sync-status-icon");
+    if (syncStatusIcon) {
+        syncStatusIcon.classList.add("syncing");
+    }
+
+    try {
+        const { data: remoteData, error } = await supabaseClient
+            .from("miciclo_records")
+            .select("date, period_active, flow, pain_level, symptoms, notes")
+            .eq("sync_code", supabaseConfig.syncCode);
+
+        if (error) throw error;
+
+        const remoteRecords = {};
+        if (remoteData) {
+            remoteData.forEach(item => {
+                remoteRecords[item.date] = {
+                    periodActive: item.period_active,
+                    flow: item.flow,
+                    painLevel: item.pain_level,
+                    symptoms: item.symptoms || [],
+                    notes: item.notes || ""
+                };
+            });
+        }
+
+        const allKeys = new Set([...Object.keys(records), ...Object.keys(remoteRecords)]);
+        let updatedLocal = false;
+        const keysToPush = [];
+
+        allKeys.forEach(dateKey => {
+            const localRec = records[dateKey];
+            const remoteRec = remoteRecords[dateKey];
+
+            if (localRec && !remoteRec) {
+                keysToPush.push(dateKey);
+            } else if (!localRec && remoteRec) {
+                records[dateKey] = remoteRec;
+                updatedLocal = true;
+            } else {
+                const isIdentical = JSON.stringify(localRec) === JSON.stringify(remoteRec);
+                if (!isIdentical) {
+                    keysToPush.push(dateKey);
+                }
+            }
+        });
+
+        if (keysToPush.length > 0) {
+            const rowsToUpsert = keysToPush.map(dateKey => {
+                const rec = records[dateKey];
+                return {
+                    sync_code: supabaseConfig.syncCode,
+                    date: dateKey,
+                    period_active: rec.periodActive,
+                    flow: rec.flow,
+                    pain_level: rec.painLevel,
+                    symptoms: rec.symptoms,
+                    notes: rec.notes
+                };
+            });
+
+            for (let i = 0; i < rowsToUpsert.length; i += 50) {
+                const chunk = rowsToUpsert.slice(i, i + 50);
+                const { error: upsertError } = await supabaseClient
+                    .from("miciclo_records")
+                    .upsert(chunk, { onConflict: 'sync_code,date' });
+                
+                if (upsertError) throw upsertError;
+            }
+        }
+
+        if (updatedLocal || keysToPush.length > 0) {
+            localStorage.setItem("miciclo_records", JSON.stringify(records));
+            updateUI();
+        }
+
+        if (showToasts && (updatedLocal || keysToPush.length > 0)) {
+            showToast("Registros sincronizados con la nube 🌸");
+        }
+
+    } catch (e) {
+        console.error("Error en sincronización total:", e);
+        if (syncStatusIcon) {
+            syncStatusIcon.classList.remove("sync-status-connected");
+            syncStatusIcon.classList.add("sync-status-error");
+        }
+        showToast("Error de sincronización ⚠️");
+    } finally {
+        if (syncStatusIcon && supabaseClient) {
+            syncStatusIcon.classList.remove("syncing");
+            syncStatusIcon.classList.add("sync-status-connected");
+        }
+    }
+}
+
+// Push single record
+async function pushRecordToSupabase(dateStr, record) {
+    if (!supabaseClient || !supabaseConfig.syncCode) return;
+
+    const syncStatusIcon = document.getElementById("sync-status-icon");
+    if (syncStatusIcon) {
+        syncStatusIcon.classList.add("syncing");
+    }
+
+    try {
+        const { error } = await supabaseClient
+            .from("miciclo_records")
+            .upsert({
+                sync_code: supabaseConfig.syncCode,
+                date: dateStr,
+                period_active: record.periodActive,
+                flow: record.flow,
+                pain_level: record.painLevel,
+                symptoms: record.symptoms,
+                notes: record.notes
+            }, { onConflict: 'sync_code,date' });
+
+        if (error) throw error;
+        
+    } catch (e) {
+        console.error("Error al subir a Supabase:", e);
+        if (syncStatusIcon) {
+            syncStatusIcon.classList.remove("sync-status-connected");
+            syncStatusIcon.classList.add("sync-status-error");
+        }
+    } finally {
+        if (syncStatusIcon && supabaseClient) {
+            syncStatusIcon.classList.remove("syncing");
+            syncStatusIcon.classList.add("sync-status-connected");
+        }
+    }
+}
+
+// Delete single record
+async function deleteRecordFromSupabase(dateStr) {
+    if (!supabaseClient || !supabaseConfig.syncCode) return;
+
+    const syncStatusIcon = document.getElementById("sync-status-icon");
+    if (syncStatusIcon) {
+        syncStatusIcon.classList.add("syncing");
+    }
+
+    try {
+        const { error } = await supabaseClient
+            .from("miciclo_records")
+            .delete()
+            .eq("sync_code", supabaseConfig.syncCode)
+            .eq("date", dateStr);
+
+        if (error) throw error;
+        
+    } catch (e) {
+        console.error("Error al borrar en Supabase:", e);
+        if (syncStatusIcon) {
+            syncStatusIcon.classList.remove("sync-status-connected");
+            syncStatusIcon.classList.add("sync-status-error");
+        }
+    } finally {
+        if (syncStatusIcon && supabaseClient) {
+            syncStatusIcon.classList.remove("syncing");
+            syncStatusIcon.classList.add("sync-status-connected");
+        }
+    }
 }
