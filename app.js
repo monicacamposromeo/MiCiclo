@@ -114,6 +114,16 @@ function initTabs() {
             } else if (targetTab === "ciclos-tab") {
                 renderCyclesList();
             }
+
+            // Enforce visibility of floating button based on current tab
+            const fabBtn = document.getElementById("open-record-modal-btn");
+            if (fabBtn) {
+                if (targetTab === "registro-tab" || targetTab === "ciclo-tab") {
+                    fabBtn.classList.remove("hidden-fab");
+                } else {
+                    fabBtn.classList.add("hidden-fab");
+                }
+            }
         });
     });
 }
@@ -1995,9 +2005,17 @@ function initSupabaseSync() {
         }
     }
 
+    const openSyncModalBtnMobile = document.getElementById("open-sync-modal-btn-mobile");
+
     // Modal event listeners
     if (openSyncModalBtn) {
         openSyncModalBtn.addEventListener("click", () => {
+            if (syncModal) syncModal.classList.remove("hidden");
+        });
+    }
+
+    if (openSyncModalBtnMobile) {
+        openSyncModalBtnMobile.addEventListener("click", () => {
             if (syncModal) syncModal.classList.remove("hidden");
         });
     }

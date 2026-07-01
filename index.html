@@ -98,9 +98,14 @@
                     </div>
                     <h1>MiCiclo</h1>
                 </div>
-                <div class="quick-status-badge" id="quick-status-card">
-                    <span class="pulse-dot"></span>
-                    <span id="quick-status-text">Calculando ciclo...</span>
+                <div class="top-bar-right" style="display: flex; align-items: center; gap: 8px;">
+                    <div class="quick-status-badge" id="quick-status-card">
+                        <span class="pulse-dot"></span>
+                        <span id="quick-status-text">Calculando ciclo...</span>
+                    </div>
+                    <button class="mobile-profile-btn" id="open-sync-modal-btn-mobile" title="Configurar Sincronización">
+                        🌸
+                    </button>
                 </div>
             </header>
 
@@ -419,7 +424,7 @@
                 <h3 id="record-modal-title" style="margin: 0; font-family: var(--font-title); font-size: 1.3rem; font-weight: 700;">¿Cómo te sientes hoy?</h3>
             </div>
             
-            <form id="period-form" class="period-form">
+            <form id="period-form" class="period-form" autocomplete="off">
                 <!-- Date Selector -->
                 <div class="form-group">
                     <label for="record-date">Fecha de registro</label>
